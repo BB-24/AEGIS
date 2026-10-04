@@ -1,0 +1,53 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Go build and test outputs
+bin/
+build/
+dist/
+coverage.out
+coverage.txt
+*.test
+*.exe
+
+# Go modules cache
+vendor/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+
+# Logs / temp
+*.log
+*.tmp
+/tmp/
+
+# Kubernetes / Helm generated artifacts
+*.tgz
+helm/*/charts/
+
+# Local tooling
+*.local
+
+# Node / frontend if added later
+node_modules/
+.npm/
+
+# Python if added later
+__pycache__/
+.pytest_cache/
+
+# test artifacts
+.testresults/
+reports/

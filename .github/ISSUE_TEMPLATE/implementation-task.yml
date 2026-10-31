@@ -1,0 +1,136 @@
+name: Implementation Task
+description: Create an issue for an implementation task from the plan
+title: "[Task N] Brief Title"
+labels: ["epic:", "area:", "P0"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Implementation Task from Plan
+        
+        This issue tracks an implementation task from the [AEGIS Implementation Plan](../docs/implementation-plan.md).
+        
+        **Reference**: Section X.Y - Task N
+  - type: dropdown
+    id: epic
+    attributes:
+      label: Epic
+      description: Which epic does this task belong to?
+      options:
+        - epic:foundation
+        - epic:data-plane
+        - epic:metadata-plane
+        - epic:control-plane
+        - epic:workflows
+        - epic:security
+        - epic:platform
+        - cross-cutting
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Primary area of work
+      options:
+        - area:build
+        - area:data-plane
+        - area:metadata
+        - area:operator
+        - area:scheduling
+        - area:backup
+        - area:restore
+        - area:security
+        - area:identity
+        - area:grpc
+        - area:kubernetes
+        - area:ci-cd
+        - area:supply-chain
+        - area:observability
+        - area:testing
+        - area:chaos
+        - area:dr
+        - area:storage
+        - area:api
+        - area:design
+        - area:performance
+        - area:documentation
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Priority level
+      options:
+        - P0 (Critical path, blocks other work)
+        - P1 (High priority, needed for MVP)
+        - P2 (Medium priority, post-MVP)
+        - P3 (Low priority, nice to have)
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What needs to be built? Reference the plan section.
+      placeholder: Implement X as described in Section Y.Z...
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Detailed scope, interfaces, files to create
+      placeholder: |
+        ### Interface
+        ```go
+        type MyInterface interface {
+            DoThing() error
+        }
+        ```
+        
+        ### Files to Create
+        - `internal/xyz/abc.go`
+        - `internal/xyz/abc_test.go`
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: Checklist of done criteria
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Criterion 3
+    validations:
+      required: true
+  - type: textarea
+    id: test-cases
+    attributes:
+      label: Test Cases
+      description: Specific test cases to validate
+      placeholder: |
+        1. Test case 1
+        2. Test case 2
+    validations:
+      required: false
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Issues this depends on or blocks
+      placeholder: |
+        - Requires: #X
+        - Blocks: #Y, #Z
+    validations:
+      required: false
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        
+        **Definition of Done**: All acceptance criteria met, tests pass, documentation updated.
+        
+        **References**: [Implementation Plan](../docs/implementation-plan.md#section-reference)

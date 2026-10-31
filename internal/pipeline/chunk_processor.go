@@ -9,13 +9,14 @@ import (
 
 	"github.com/aegis/aegis/internal/chunker"
 	"github.com/aegis/aegis/internal/compression"
+	aegiscrypto "github.com/aegis/aegis/internal/crypto"
 	"github.com/aegis/aegis/internal/dedup"
 )
 
 // Encryptor encrypts compressed chunk data. Production implementations should
 // use authenticated encryption and manage keys outside this package.
 type Encryptor interface {
-	Encrypt(ctx context.Context, plaintext []byte) ([]byte, error)
+	EncryptChunkWithContext(ctx context.Context, plaintext []byte) (aegiscrypto.EncryptedChunk, error)
 }
 
 // ChunkStore persists encrypted chunk bytes and returns their shard locations.
@@ -99,11 +100,14 @@ func (p *Processor) Process(ctx context.Context, input chunker.Chunk) (Processed
 	if err != nil {
 		return ProcessedChunk{}, fmt.Errorf("compress chunk %x: %w", hash, err)
 	}
-	encrypted, err := p.encryptor.Encrypt(ctx, compressed)
+	encrypted, err := p.encryptor.EncryptChunkWithContext(ctx, compressed)
 	if err != nil {
 		return ProcessedChunk{}, fmt.Errorf("encrypt chunk %x: %w", hash, err)
 	}
-	locations, err := p.store.Store(ctx, hash, encrypted)
+	if len(encrypted.Ciphertext) == 0 || len(encrypted.Nonce) != aegiscrypto.NonceSize || len(encrypted.WrappedDEK) == 0 || encrypted.KeyID == "" {
+		return ProcessedChunk{}, errors.New("encryptor returned incomplete chunk encryption metadata")
+	}
+	locations, err := p.store.Store(ctx, hash, encrypted.Ciphertext)
 	if err != nil {
 		return ProcessedChunk{}, fmt.Errorf("store chunk %x: %w", hash, err)
 	}
@@ -112,7 +116,10 @@ func (p *Processor) Process(ctx context.Context, input chunker.Chunk) (Processed
 		Hash:           hash,
 		LogicalSize:    int64(len(input.Data)),
 		CompressedSize: int64(len(compressed)),
-		EncryptedSize:  int64(len(encrypted)),
+		EncryptedSize:  int64(len(encrypted.Ciphertext)),
+		Nonce:          encrypted.Nonce,
+		WrappedDEK:     encrypted.WrappedDEK,
+		KeyID:          encrypted.KeyID,
 		RefCount:       1,
 		ShardLocations: locations,
 		State:          dedup.Available,

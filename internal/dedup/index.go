@@ -43,6 +43,9 @@ type ChunkMetadata struct {
 	LogicalSize    int64           `json:"logical_size"`
 	CompressedSize int64           `json:"compressed_size"`
 	EncryptedSize  int64           `json:"encrypted_size"`
+	Nonce          []byte          `json:"nonce,omitempty"`
+	WrappedDEK     []byte          `json:"wrapped_dek,omitempty"`
+	KeyID          string          `json:"key_id,omitempty"`
 	RefCount       int64           `json:"ref_count"`
 	ShardLocations []ShardLocation `json:"shard_locations,omitempty"`
 	State          ChunkState      `json:"state"`
@@ -285,5 +288,7 @@ func (i *Index) persistLocked(hash [32]byte, meta ChunkMetadata) error {
 
 func cloneMetadata(meta ChunkMetadata) ChunkMetadata {
 	meta.ShardLocations = append([]ShardLocation(nil), meta.ShardLocations...)
+	meta.Nonce = append([]byte(nil), meta.Nonce...)
+	meta.WrappedDEK = append([]byte(nil), meta.WrappedDEK...)
 	return meta
 }

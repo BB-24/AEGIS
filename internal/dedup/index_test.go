@@ -62,9 +62,18 @@ func TestPersistentIndexReopens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := index.Add(hash, ChunkMetadata{LogicalSize: 42, CompressedSize: 21}); err != nil {
+	original := ChunkMetadata{
+		LogicalSize:    42,
+		CompressedSize: 21,
+		Nonce:          []byte{1, 2, 3},
+		WrappedDEK:     []byte{4, 5, 6},
+		KeyID:          "test-kek",
+	}
+	if err := index.Add(hash, original); err != nil {
 		t.Fatal(err)
 	}
+	original.Nonce[0] = 9
+	original.WrappedDEK[0] = 9
 	if err := index.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +84,9 @@ func TestPersistentIndexReopens(t *testing.T) {
 	}
 	defer reopened.Close()
 	meta, ok := reopened.Lookup(hash)
-	if !ok || meta.RefCount != 1 || meta.Hash != hash || meta.LogicalSize != 42 {
+	if !ok || meta.RefCount != 1 || meta.Hash != hash || meta.LogicalSize != 42 ||
+		meta.KeyID != "test-kek" || string(meta.Nonce) != string([]byte{1, 2, 3}) ||
+		string(meta.WrappedDEK) != string([]byte{4, 5, 6}) {
 		t.Fatalf("reopened metadata = (%+v, %v)", meta, ok)
 	}
 }

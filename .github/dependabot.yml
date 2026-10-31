@@ -1,0 +1,66 @@
+version: 2
+updates:
+  # Go modules
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "deps(go):"
+    labels:
+      - "dependencies"
+      - "go"
+    groups:
+      golangci-lint:
+        patterns:
+          - "github.com/golangci/*"
+      protobuf:
+        patterns:
+          - "google.golang.org/protobuf*"
+          - "google.golang.org/genproto*"
+      grpc:
+        patterns:
+          - "google.golang.org/grpc*"
+          - "github.com/grpc-ecosystem/*"
+      prometheus:
+        patterns:
+          - "github.com/prometheus/*"
+      kubernetes:
+        patterns:
+          - "k8s.io/*"
+          - "sigs.k8s.io/*"
+      observability:
+        patterns:
+          - "go.opentelemetry.io/*"
+          - "go.uber.org/*"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(actions):"
+    labels:
+      - "dependencies"
+      - "github-actions"
+
+  # Docker
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(docker):"
+    labels:
+      - "dependencies"
+      - "docker"

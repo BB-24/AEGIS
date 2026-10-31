@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package aegis.api.v1alpha1;
+
+option go_package = "github.com/aegis/aegis/pkg/proto/generated/api/v1alpha1";
+
+import "aegis/api/v1alpha1/common.proto";
+
+// Restore service for managing restore operations
+
+service RestoreService {
+  rpc CreateRestore(CreateRestoreRequest) returns (CreateRestoreResponse);
+  rpc GetRestore(GetRestoreRequest) returns (Restore);
+  rpc ListRestores(ListRestoresRequest) returns (ListRestoresResponse);
+  rpc DeleteRestore(DeleteRestoreRequest) returns (DeleteRestoreResponse);
+  rpc GetRestoreStatus(GetRestoreStatusRequest) returns (RestoreStatus);
+  rpc WatchRestore(WatchRestoreRequest) returns (stream RestoreStatus);
+}
+
+message CreateRestoreRequest {
+  RestoreSpec spec = 1;
+}
+
+message CreateRestoreResponse {
+  Restore restore = 1;
+}
+
+message GetRestoreRequest {
+  string name = 1;
+  string namespace = 2;
+}
+
+message ListRestoresRequest {
+  string namespace = 1;
+  string label_selector = 2;
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+message ListRestoresResponse {
+  repeated Restore restores = 1;
+  string next_page_token = 2;
+}
+
+message DeleteRestoreRequest {
+  string name = 1;
+  string namespace = 2;
+}
+
+message DeleteRestoreResponse {
+  bool success = 1;
+}
+
+message GetRestoreStatusRequest {
+  string name = 1;
+  string namespace = 2;
+}
+
+message Restore {
+  string name = 1;
+  string namespace = 2;
+  RestoreSpec spec = 3;
+  Status status = 4;
+  map<string, string> labels = 5;
+  map<string, string> annotations = 6;
+  google.protobuf.Timestamp creation_timestamp = 7;
+}
+
+message RestoreStatus {
+  string name = 1;
+  string namespace = 2;
+  Status status = 3;
+  RestoreProgress progress = 4;
+}
+
+message RestoreProgress {
+  int64 total_bytes = 1;
+  int64 processed_bytes = 2;
+  int64 total_files = 3;
+  int64 processed_files = 4;
+  google.protobuf.Timestamp start_time = 5;
+  google.protobuf.Timestamp estimated_completion = 6;
+}
+
+message WatchRestoreRequest {
+  string name = 1;
+  string namespace = 2;
+}

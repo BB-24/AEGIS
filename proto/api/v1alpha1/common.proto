@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package aegis.api.v1alpha1;
+
+option go_package = "github.com/aegis/aegis/pkg/proto/generated/api/v1alpha1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+// Common types used across AEGIS APIs
+
+// ObjectReference references a Kubernetes object
+message ObjectReference {
+  string api_version = 1;
+  string kind = 2;
+  string namespace = 3;
+  string name = 4;
+  string uid = 5;
+}
+
+// Condition represents a condition of a resource
+message Condition {
+  string type = 1;
+  string status = 2; // True, False, Unknown
+  string reason = 3;
+  string message = 4;
+  google.protobuf.Timestamp last_transition_time = 5;
+  google.protobuf.Timestamp last_probe_time = 6;
+}
+
+// ResourceRequirements describes compute resource requirements
+message ResourceRequirements {
+  map<string, string> limits = 1;
+  map<string, string> requests = 2;
+}
+
+// VolumeSpec describes a storage volume
+message VolumeSpec {
+  string name = 1;
+  string storage_class = 2;
+  string size = 3;
+  VolumeAccessMode access_mode = 4;
+  VolumeMode volume_mode = 5;
+}
+
+enum VolumeAccessMode {
+  VOLUME_ACCESS_MODE_UNSPECIFIED = 0;
+  VOLUME_ACCESS_MODE_READ_WRITE_ONCE = 1;
+  VOLUME_ACCESS_MODE_READ_WRITE_MANY = 2;
+  VOLUME_ACCESS_MODE_READ_ONLY_MANY = 3;
+}
+
+enum VolumeMode {
+  VOLUME_MODE_UNSPECIFIED = 0;
+  VOLUME_MODE_FILESYSTEM = 1;
+  VOLUME_MODE_BLOCK = 2;
+}
+
+// BackupSpec defines the specification for a backup
+message BackupSpec {
+  string backup_name = 1;
+  string namespace = 2;
+  ObjectReference target = 3;
+  map<string, string> labels = 4;
+  google.protobuf.Timestamp scheduled_time = 5;
+  google.protobuf.Duration retention = 6;
+  bool incremental = 7;
+}
+
+// RestoreSpec defines the specification for a restore
+message RestoreSpec {
+  string restore_name = 1;
+  string namespace = 2;
+  string backup_name = 3;
+  string target_namespace = 4;
+  map<string, string> labels = 5;
+  ObjectReference target = 6;
+}
+
+// Status represents the status of an operation
+message Status {
+  string phase = 1; // Pending, Running, Completed, Failed
+  string message = 2;
+  google.protobuf.Timestamp start_time = 3;
+  google.protobuf.Timestamp completion_time = 4;
+  int64 progress = 5; // 0-100
+  repeated Condition conditions = 6;
+}

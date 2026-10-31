@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package aegis.api.v1alpha1;
+
+option go_package = "github.com/aegis/aegis/pkg/proto/generated/api/v1alpha1";
+
+import "aegis/api/v1alpha1/common.proto";
+
+// Backup service for managing backup operations
+
+service BackupService {
+  rpc CreateBackup(CreateBackupRequest) returns (CreateBackupResponse);
+  rpc GetBackup(GetBackupRequest) returns (Backup);
+  rpc ListBackups(ListBackupsRequest) returns (ListBackupsResponse);
+  rpc DeleteBackup(DeleteBackupRequest) returns (DeleteBackupResponse);
+  rpc GetBackupStatus(GetBackupStatusRequest) returns (BackupStatus);
+  rpc WatchBackup(WatchBackupRequest) returns (stream BackupStatus);
+}
+
+message CreateBackupRequest {
+  BackupSpec spec = 1;
+}
+
+message CreateBackupResponse {
+  Backup backup = 1;
+}
+
+message GetBackupRequest {
+  string name = 1;
+  string namespace = 2;
+}
+
+message ListBackupsRequest {
+  string namespace = 1;
+  string label_selector = 2;
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+message ListBackupsResponse {
+  repeated Backup backups = 1;
+  string next_page_token = 2;
+}
+
+message DeleteBackupRequest {
+  string name = 1;
+  string namespace = 2;
+}
+
+message DeleteBackupResponse {
+  bool success = 1;
+}
+
+message GetBackupStatusRequest {
+  string name = 1;
+  string namespace = 2;
+}
+
+message Backup {
+  string name = 1;
+  string namespace = 2;
+  BackupSpec spec = 3;
+  Status status = 4;
+  map<string, string> labels = 5;
+  map<string, string> annotations = 6;
+  google.protobuf.Timestamp creation_timestamp = 7;
+}
+
+message BackupStatus {
+  string name = 1;
+  string namespace = 2;
+  Status status = 3;
+  BackupProgress progress = 4;
+}
+
+message BackupProgress {
+  int64 total_bytes = 1;
+  int64 processed_bytes = 2;
+  int64 total_files = 3;
+  int64 processed_files = 4;
+  google.protobuf.Timestamp start_time = 5;
+  google.protobuf.Timestamp estimated_completion = 6;
+}
+
+message WatchBackupRequest {
+  string name = 1;
+  string namespace = 2;
+}

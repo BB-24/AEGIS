@@ -1,0 +1,241 @@
+# GoReleaser configuration for AEGIS
+# https://goreleaser.com
+
+version: 2
+
+project_name: aegis
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - id: aegis-operator
+    main: ./cmd/aegis-operator
+    binary: aegis-operator
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.buildTime={{.Date}}
+    tags:
+      - netgo
+
+  - id: aegis-worker
+    main: ./cmd/aegis-worker
+    binary: aegis-worker
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.buildTime={{.Date}}
+    tags:
+      - netgo
+
+  - id: aegis-metadata
+    main: ./cmd/aegis-metadata
+    binary: aegis-metadata
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.buildTime={{.Date}}
+    tags:
+      - netgo
+
+  - id: aegis-storage
+    main: ./cmd/aegis-storage
+    binary: aegis-storage
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.buildTime={{.Date}}
+    tags:
+      - netgo
+
+  - id: aegis-cli
+    main: ./cmd/aegis-cli
+    binary: aegis-cli
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.buildTime={{.Date}}
+    tags:
+      - netgo
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "arm64" }}arm64
+      {{- else }}{{ .Arch }}{{ end }}
+    files:
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: aegis-project
+    name: aegis
+  header: |
+    # AEGIS {{.Version}}
+
+    Immutable Distributed Data Protection Platform for Kubernetes
+  footer: |
+    ---
+    **Full Changelog**: https://github.com/aegis-project/aegis/compare/{{.PreviousTag}}...{{.Tag}}
+
+dockers:
+  - id: aegis-operator
+    build_ids:
+      - aegis-operator
+    goos: linux
+    goarch:
+      - amd64
+      - arm64
+    image_templates:
+      - "ghcr.io/aegis-project/aegis-operator:{{ .Tag }}"
+      - "ghcr.io/aegis-project/aegis-operator:latest"
+    dockerfile: Dockerfile.operator
+    extra_files:
+      - config/manifests/operator.yaml
+
+  - id: aegis-worker
+    build_ids:
+      - aegis-worker
+    goos: linux
+    goarch:
+      - amd64
+      - arm64
+    image_templates:
+      - "ghcr.io/aegis-project/aegis-worker:{{ .Tag }}"
+      - "ghcr.io/aegis-project/aegis-worker:latest"
+    dockerfile: Dockerfile.worker
+
+  - id: aegis-metadata
+    build_ids:
+      - aegis-metadata
+    goos: linux
+    goarch:
+      - amd64
+      - arm64
+    image_templates:
+      - "ghcr.io/aegis-project/aegis-metadata:{{ .Tag }}"
+      - "ghcr.io/aegis-project/aegis-metadata:latest"
+    dockerfile: Dockerfile.metadata
+
+  - id: aegis-storage
+    build_ids:
+      - aegis-storage
+    goos: linux
+    goarch:
+      - amd64
+      - arm64
+    image_templates:
+      - "ghcr.io/aegis-project/aegis-storage:{{ .Tag }}"
+      - "ghcr.io/aegis-project/aegis-storage:latest"
+    dockerfile: Dockerfile.storage
+
+  - id: aegis-cli
+    build_ids:
+      - aegis-cli
+    goos: linux
+    goarch:
+      - amd64
+      - arm64
+    image_templates:
+      - "ghcr.io/aegis-project/aegis-cli:{{ .Tag }}"
+      - "ghcr.ioaegis-project/aegis-cli:latest"
+    dockerfile: Dockerfile.cli
+
+docker_manifests:
+  - name_template: ghcr.io/aegis-project/aegis-operator:{{ .Tag }}
+  - name_template: ghcr.io/aegis-project/aegis-worker:{{ .Tag }}
+  - name_template: ghcr.io/aegis-project/aegis-metadata:{{ .Tag }}
+  - name_template: ghcr.io/aegis-project/aegis-storage:{{ .Tag }}
+  - name_template: ghcr.io/aegis-project/aegis-cli:{{ .Tag }}
+
+publishers:
+  - name: GitHub
+    releases:
+      - name: aegis-operator
+      - name: aegis-worker
+      - name: aegis-metadata
+      - name: aegis-storage
+      - name: aegis-cli
+
+announcements:
+  - name: GitHub
+    releases:
+      - name: aegis-operator
+      - name: aegis-worker
+      - name: aegis-metadata
+      - name: aegis-storage
+      - name: aegis-cli

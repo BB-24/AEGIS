@@ -1,18 +1,74 @@
 syntax = "proto3";
 
-package aegis.metadata.v1;
+package aegis.metadata.v1alpha1;
 
-option go_package = "github.com/aegis/aegis/pkg/proto/generated/metadata;metadata";
+option go_package = "github.com/aegis/aegis/pkg/proto/generated/metadata/v1alpha1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+// Metadata service for managing the distributed metadata store
 
 service MetadataService {
-  rpc GetObject(GetObjectRequest) returns (GetObjectResponse);
+  rpc CreateVolume(CreateVolumeRequest) returns (Volume);
+  rpc GetVolume(GetVolumeRequest) returns (Volume);
+  rpc UpdateVolume(UpdateVolumeRequest) returns (Volume);
+  rpc DeleteVolume(DeleteVolumeRequest) returns (DeleteVolumeResponse);
+  rpc ListVolumes(ListVolumesRequest) returns (ListVolumesResponse);
+  rpc CreateChunk(CreateChunkRequest) returns (Chunk);
+  rpc GetChunk(GetChunkRequest) returns (Chunk);
+  rpc ListChunks(ListChunksRequest) returns (ListChunksResponse);
+  rpc DeleteChunk(DeleteChunkRequest) returns (DeleteChunkResponse);
+  rpc RegisterNode(RegisterNodeRequest) returns (Node);
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
+  rpc GetNode(GetNodeRequest) returns (Node);
+  rpc CreateSnapshot(CreateSnapshotRequest) returns (Snapshot);
+  rpc GetSnapshot(GetSnapshotRequest) returns (Snapshot);
+  rpc ListSnapshots(ListSnapshotsRequest) returns (ListSnapshotsResponse);
+  rpc DeleteSnapshot(DeleteSnapshotRequest) returns (DeleteSnapshotResponse);
+  rpc GetClusterStatus(GetClusterStatusRequest) returns (ClusterStatus);
+  rpc GetClusterConfig(GetClusterConfigRequest) returns (ClusterConfig);
+  rpc UpdateClusterConfig(UpdateClusterConfigRequest) returns (ClusterConfig);
 }
 
-message GetObjectRequest {
-  string object_id = 1;
-}
+message CreateVolumeRequest { string name = 1; string storage_class = 2; int64 size = 3; map<string, string> labels = 4; map<string, string> annotations = 5; }
+message GetVolumeRequest { string id = 1; }
+message UpdateVolumeRequest { string id = 1; map<string, string> labels = 2; map<string, string> annotations = 3; }
+message DeleteVolumeRequest { string id = 1; }
+message DeleteVolumeResponse { bool success = 1; }
+message ListVolumesRequest { string label_selector = 1; int32 page_size = 2; string page_token = 3; }
+message ListVolumesResponse { repeated Volume volumes = 1; string next_page_token = 2; }
+message Volume { string id = 1; string name = 2; string storage_class = 3; int64 size = 4; VolumeStatus status = 5; map<string, string> labels = 6; map<string, string> annotations = 7; google.protobuf.Timestamp creation_timestamp = 8; google.protobuf.Timestamp update_timestamp = 9; string owner_node = 10; repeated string chunk_ids = 11; }
+enum VolumeStatus { VOLUME_STATUS_UNSPECIFIED = 0; VOLUME_STATUS_CREATING = 1; VOLUME_STATUS_READY = 2; VOLUME_STATUS_DELETING = 3; VOLUME_STATUS_ERROR = 4; }
+message CreateChunkRequest { string volume_id = 1; int64 offset = 2; int64 size = 3; string checksum = 4; ChunkStorageTier tier = 5; }
+message GetChunkRequest { string id = 1; }
+message ListChunksRequest { string volume_id = 1; int32 page_size = 2; string page_token = 3; }
+message ListChunksResponse { repeated Chunk chunks = 1; string next_page_token = 2; }
+message DeleteChunkRequest { string id = 1; }
+message DeleteChunkResponse { bool success = 1; }
+message Chunk { string id = 1; string volume_id = 2; int64 offset = 3; int64 size = 4; string checksum = 5; ChunkStorageTier tier = 6; ChunkStatus status = 7; repeated string replica_nodes = 8; google.protobuf.Timestamp creation_timestamp = 9; }
+enum ChunkStorageTier { CHUNK_STORAGE_TIER_UNSPECIFIED = 0; CHUNK_STORAGE_TIER_HOT = 1; CHUNK_STORAGE_TIER_WARM = 2; CHUNK_STORAGE_TIER_COLD = 3; CHUNK_STORAGE_TIER_ARCHIVE = 4; }
+enum ChunkStatus { CHUNK_STATUS_UNSPECIFIED = 0; CHUNK_STATUS_PENDING = 1; CHUNK_STATUS_REPLICATING = 2; CHUNK_STATUS_READY = 3; CHUNK_STATUS_DEGRADED = 4; CHUNK_STATUS_LOST = 5; }
+message RegisterNodeRequest { string id = 1; string address = 2; int32 port = 3; int64 capacity = 4; map<string, string> labels = 5; }
+message HeartbeatRequest { string node_id = 1; int64 used_capacity = 2; int64 available_capacity = 3; repeated string active_chunks = 4; }
+message HeartbeatResponse { bool accepted = 1; google.protobuf.Timestamp server_time = 2; repeated string commands = 3; }
+message ListNodesRequest { string label_selector = 1; int32 page_size = 2; string page_token = 3; }
+message ListNodesResponse { repeated Node nodes = 1; string next_page_token = 2; }
+message GetNodeRequest { string id = 1; }
+message Node { string id = 1; string address = 2; int32 port = 3; int64 capacity = 4; int64 used_capacity = 5; NodeStatus status = 6; map<string, string> labels = 7; google.protobuf.Timestamp last_heartbeat = 8; google.protobuf.Timestamp creation_timestamp = 9; }
+enum NodeStatus { NODE_STATUS_UNSPECIFIED = 0; NODE_STATUS_HEALTHY = 1; NODE_STATUS_DEGRADED = 2; NODE_STATUS_UNHEALTHY = 3; NODE_STATUS_OFFLINE = 4; }
+message CreateSnapshotRequest { string volume_id = 1; string name = 2; map<string, string> labels = 3; }
+message GetSnapshotRequest { string id = 1; }
+message ListSnapshotsRequest { string volume_id = 1; int32 page_size = 2; string page_token = 3; }
+message ListSnapshotsResponse { repeated Snapshot snapshots = 1; string next_page_token = 2; }
+message DeleteSnapshotRequest { string id = 1; }
+message DeleteSnapshotResponse { bool success = 1; }
+message Snapshot { string id = 1; string volume_id = 2; string name = 3; SnapshotStatus status = 4; int64 size = 5; map<string, string> labels = 6; google.protobuf.Timestamp creation_timestamp = 7; google.protobuf.Timestamp completion_timestamp = 8; }
+enum SnapshotStatus { SNAPSHOT_STATUS_UNSPECIFIED = 0; SNAPSHOT_STATUS_CREATING = 1; SNAPSHOT_STATUS_READY = 2; SNAPSHOT_STATUS_DELETING = 3; SNAPSHOT_STATUS_ERROR = 4; }
+message GetClusterStatusRequest { }
+message ClusterStatus { int32 total_nodes = 1; int32 healthy_nodes = 2; int64 total_capacity = 3; int64 used_capacity = 4; int64 available_capacity = 5; map<string, int32> volumes_by_status = 6; google.protobuf.Timestamp last_updated = 7; }
+message GetClusterConfigRequest { }
+message ClusterConfig { int32 replication_factor = 1; int32 min_replicas = 2; int32 max_replicas = 3; google.protobuf.Duration heartbeat_interval = 4; google.protobuf.Duration node_timeout = 5; bool auto_rebalance = 6; }
+message UpdateClusterConfigRequest { ClusterConfig config = 1; }
 
-message GetObjectResponse {
-  string object_id = 1;
-  uint64 size_bytes = 2;
-}

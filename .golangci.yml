@@ -1,16 +1,133 @@
 run:
   timeout: 5m
+  issues-exit-code: 1
   tests: true
 
 linters:
-  disable-all: true
   enable:
-    - errcheck
-    - gofmt
     - govet
-    - ineffassign
     - staticcheck
+    - errcheck
+    - ineffassign
     - unused
+    - goimports
+    - misspell
+    - nakedret
+    - unconvert
+    - unparam
+    - gocritic
+    - gosec
+    - bodyclose
+    - errorlint
+    - prealloc
+    - copyloopvar
+    - gocyclo
+    - cyclop
+    - funlen
+    - goconst
+    - gocognit
+    - nestif
+    - dupl
+    - lll
+    - gochecknoinits
+    - gochecknoglobals
+    - depguard
+    - exhaustruct
+    - exhaustive
+    - forcetypeassert
+    - nilerr
+    - nilnil
+    - nolintlint
+    - paralleltest
+    - testifylint
+    - testpackage
+    - tparallel
+    - varnamelen
+    - whitespace
+    - wsl
+    - noctx
+    - nolintlint
+    - revive
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  cyclop:
+    max-complexity: 15
+  funlen:
+    lines: 100
+    statements: 50
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  gocognit:
+    min-complexity: 20
+  nestif:
+    min-complexity: 5
+  dupl:
+    threshold: 100
+  lll:
+    line-length: 120
+  depguard:
+    rules:
+      main:
+        deny:
+          - pkg: "github.com/sirupsen/logrus"
+            desc: "Use zerolog instead"
+          - pkg: "go.uber.org/zap"
+            desc: "Use zerolog instead"
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - wrapperFunc
+      - dupImport
+      - ifElseChain
+  gosec:
+    excludes:
+      - G104
+      - G107
+      - G108
+      - G204
+      - G304
+      - G307
+      - G401
+      - G404
+      - G505
+  revive:
+    rules:
+      - name: var-naming
+        arguments:
+          - [ID]
+      - name: exported
+        severity: warning
+        disabled: true
 
 issues:
-  max-same-issues: 0
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - funlen
+        - gocognit
+        - nestif
+        - lll
+        - dupl
+    - path: vendor/
+      linters:
+        - all
+    - path: proto/
+      linters:
+        - all
+    - path: pkg/proto/generated/
+      linters:
+        - all
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true

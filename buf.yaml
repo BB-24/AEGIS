@@ -1,11 +1,22 @@
 version: v2
-modules:
-  - path: proto
+name: buf.build/aegis/aegis
+deps:
+  - buf.build/googleapis/googleapis
+  - buf.build/grpc-ecosystem/grpc-gateway
+  - buf.build/kubernetes-io/kubernetes
+
 lint:
   use:
-    - STANDARD
+    - DEFAULT
   except:
-    - PACKAGE_DIRECTORY_MATCH
+    - PACKAGE_VERSION_SUFFIX
+    - PACKAGE_NO_DELETE
+    - PACKAGE_NO_DEPRECATED
+
 breaking:
   use:
     - FILE
+  except:
+    - EXTENSION_JSON_NAME
+    - FIELD_SAME_DEFAULT
+    - FIELD_SAME_JSON_NAME

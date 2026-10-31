@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package aegis.metadata.v1;
+
+option go_package = "github.com/aegis/aegis/pkg/proto/generated/metadata;metadata";
+
+service MetadataService {
+  rpc GetObject(GetObjectRequest) returns (GetObjectResponse);
+}
+
+message GetObjectRequest {
+  string object_id = 1;
+}
+
+message GetObjectResponse {
+  string object_id = 1;
+  uint64 size_bytes = 2;
+}

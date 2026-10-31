@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package aegis.storage.v1;
+
+option go_package = "github.com/aegis/aegis/pkg/proto/generated/storage;storage";
+
+service StorageService {
+  rpc GetChunk(GetChunkRequest) returns (GetChunkResponse);
+}
+
+message GetChunkRequest {
+  string chunk_id = 1;
+}
+
+message GetChunkResponse {
+  bytes data = 1;
+}

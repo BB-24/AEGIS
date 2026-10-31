@@ -1,0 +1,16 @@
+{
+  "name": "AEGIS Go Development",
+  "image": "mcr.microsoft.com/devcontainers/go:1.22",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "postCreateCommand": "go mod download",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "bufbuild.vscode-buf"
+      ]
+    }
+  }
+}

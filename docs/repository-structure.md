@@ -35,14 +35,19 @@ AEGIS/
 │   └── runbooks/                  # operator, backup, restore, upgrade, incident, and DR procedures
 ├── internal/
 │   ├── blobstore/                 # BlobStore interface and filesystem/S3 adapters
+│   ├── backup/                    # backup workflow orchestration
 │   ├── chunker/                   # streaming FastCDC implementation and chunk-boundary tests
+│   ├── compression/               # compression algorithms and codec wrappers
 │   ├── crypto/                    # SHA-256, zstd wrappers, AES-GCM, manifest signing primitives
 │   ├── dedup/                     # content index and reference accounting logic
 │   ├── erasure/                   # Reed-Solomon (6,3) encode/decode implementation
+│   ├── health/                    # HTTP health and readiness endpoints
 │   ├── metadata/                  # Raft node, state machine, durable store, snapshots, read path
 │   ├── operator/                  # controllers, scheduler, reconciliation, worker assignment
 │   ├── restore/                   # manifest verification, shard retrieval, restore and readiness logic
+│   ├── scheduler/                 # task scheduling and worker assignment
 │   ├── storage/                   # storage gRPC server, placement, shard I/O, repair
+│   ├── service/                   # shared service startup and graceful shutdown
 │   ├── task/                      # task lifecycle, leases, heartbeats, checkpoints
 │   ├── security/                  # authentication, authorization, approvals, audit events
 │   ├── kms/                       # KMS/Vault interfaces and provider adapters
@@ -113,14 +118,19 @@ Project documentation. Keep the implementation plan and this structure guide her
 Private implementation packages. Package tests should normally live beside the implementation as `*_test.go`; `tests/` is reserved for cross-package/system tests.
 
 - `blobstore/`: define object semantics and local/S3 adapters. A shard/object write must be atomic from the caller's perspective, checksum-validated, and context-cancellable.
+- `backup/`: coordinate backup workflow stages and persist resumable progress.
 - `chunker/`: stream bytes into bounded FastCDC chunks; avoid buffering an entire volume.
+- `compression/`: define compression interfaces and codec wrappers; keep codecs independently testable.
 - `crypto/`: SHA-256, zstd, AES-256-GCM, and manifest signing/verifying. Keep key-provider calls behind interfaces and never persist plaintext key material.
 - `dedup/`: content identity lookup and reference accounting. The durable authoritative index belongs in metadata; package-local caches are advisory only.
 - `erasure/`: Reed-Solomon (6,3) codec, framing, shard validation, and reconstruction.
+- `health/`: expose liveness and readiness HTTP endpoints shared by service binaries.
 - `metadata/`: Raft integration, deterministic state machine commands, persistent FSM snapshots, linearizable read barriers, and metadata gRPC service implementation.
 - `operator/`: policy controller, backup/restore reconciliation, scheduler, and worker assignment. Reconcile handlers must be idempotent and resumable.
 - `restore/`: verify signed manifest first, fetch/reconstruct shards, decrypt/decompress/hash-check, write to target, and report readiness/RTO. Fail closed on any integrity error.
+- `scheduler/`: schedule durable tasks and assign work to available workers.
 - `storage/`: shard server, placement policy, shard readers/writers, and repair workflows.
+- `service/`: shared HTTP server startup, structured logging, and graceful shutdown for service entry points.
 - `task/`: durable task state, leases, heartbeat, idempotency keys, attempts, and resume checkpoints.
 - `security/`: mTLS/SPIFFE identity checks, Kubernetes/OIDC authz, dual approval, tenant isolation, and tamper-evident audit records.
 - `kms/`: provider-neutral KMS interface and AWS KMS/Vault Transit adapters; tests should use a deterministic test provider but production code must not fall back to local plaintext keys.

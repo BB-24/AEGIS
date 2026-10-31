@@ -6,9 +6,12 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"sync"
@@ -28,6 +31,7 @@ type LocalProvider struct {
 	keys     map[string][]byte
 	activeID string
 	nextID   uint64
+	filePath string
 }
 
 var _ interface {
@@ -36,6 +40,8 @@ var _ interface {
 	GenerateDataKey(context.Context, string) ([]byte, []byte, string, error)
 	RotateKEK(context.Context) error
 } = (*LocalProvider)(nil)
+
+var _ Provider = (*LocalProvider)(nil)
 
 // NewLocalProvider creates an ephemeral local provider with a random AES-256 KEK.
 func NewLocalProvider() (*LocalProvider, error) {
@@ -71,8 +77,117 @@ func NewLocalProviderWithKey(key []byte, keyID string) (*LocalProvider, error) {
 	}, nil
 }
 
+// OpenLocalProvider loads or creates a file-backed development KEK. The file
+// contains plaintext key material and must be protected by the host.
+func OpenLocalProvider(path string) (*LocalProvider, error) {
+	if path == "" {
+		return nil, errors.New("local KMS key file path is empty")
+	}
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		provider, createErr := NewLocalProvider()
+		if createErr != nil {
+			return nil, createErr
+		}
+		provider.filePath = path
+		provider.mu.Lock()
+		persistErr := provider.persistLocked()
+		provider.mu.Unlock()
+		if persistErr != nil {
+			provider.destroyKeys()
+			return nil, persistErr
+		}
+		return provider, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read local KMS key file: %w", err)
+	}
+	defer wipe(data)
+	var state localKeyFileState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return nil, fmt.Errorf("parse local KMS key file: %w", err)
+	}
+	if state.ActiveID == "" || len(state.Keys[state.ActiveID]) != 32 || state.NextID == 0 {
+		return nil, errors.New("local KMS key file has invalid state")
+	}
+	provider := &LocalProvider{
+		random:   rand.Reader,
+		keys:     state.Keys,
+		activeID: state.ActiveID,
+		nextID:   state.NextID,
+		filePath: path,
+	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		provider.destroyKeys()
+		return nil, fmt.Errorf("restrict local KMS key file permissions: %w", err)
+	}
+	return provider, nil
+}
+
+type localKeyFileState struct {
+	Keys     map[string][]byte `json:"keys"`
+	ActiveID string            `json:"active_id"`
+	NextID   uint64            `json:"next_id"`
+}
+
+func (p *LocalProvider) persistLocked() error {
+	if p.filePath == "" {
+		return nil
+	}
+	encoded, err := json.Marshal(localKeyFileState{
+		Keys: p.keys, ActiveID: p.activeID, NextID: p.nextID,
+	})
+	if err != nil {
+		return fmt.Errorf("encode local KMS key file: %w", err)
+	}
+	defer wipe(encoded)
+	dir := filepath.Dir(p.filePath)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("create local KMS key directory: %w", err)
+	}
+	temp, err := os.CreateTemp(dir, ".aegis-kek-*")
+	if err != nil {
+		return fmt.Errorf("create local KMS key file: %w", err)
+	}
+	tempPath := temp.Name()
+	defer os.Remove(tempPath)
+	if err := temp.Chmod(0o600); err != nil {
+		_ = temp.Close()
+		return fmt.Errorf("restrict temporary KMS key file permissions: %w", err)
+	}
+	if _, err := temp.Write(encoded); err != nil {
+		_ = temp.Close()
+		return fmt.Errorf("write local KMS key file: %w", err)
+	}
+	if err := temp.Sync(); err != nil {
+		_ = temp.Close()
+		return fmt.Errorf("sync local KMS key file: %w", err)
+	}
+	if err := temp.Close(); err != nil {
+		return fmt.Errorf("close local KMS key file: %w", err)
+	}
+	if err := os.Rename(tempPath, p.filePath); err != nil {
+		if removeErr := os.Remove(p.filePath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return fmt.Errorf("replace local KMS key file: %w", err)
+		}
+		if retryErr := os.Rename(tempPath, p.filePath); retryErr != nil {
+			return fmt.Errorf("replace local KMS key file: %w", retryErr)
+		}
+	}
+	return nil
+}
+
+func (p *LocalProvider) destroyKeys() {
+	p.mu.Lock()
+	for id, key := range p.keys {
+		wipe(key)
+		delete(p.keys, id)
+	}
+	p.mu.Unlock()
+}
+
 // Encrypt wraps plaintext with the active local KEK using AES-GCM.
-func (p *LocalProvider) Encrypt(ctx context.Context, plaintext []byte) ([]byte, string, error) {
+func (p *LocalProvider) WrapKey(ctx context.Context, plaintext []byte) ([]byte, string, error) {
 	if err := validateContext(ctx); err != nil {
 		return nil, "", err
 	}
@@ -89,9 +204,14 @@ func (p *LocalProvider) Encrypt(ctx context.Context, plaintext []byte) ([]byte, 
 	return wrapped, keyID, nil
 }
 
+// Encrypt is a compatibility alias for WrapKey.
+func (p *LocalProvider) Encrypt(ctx context.Context, plaintext []byte) ([]byte, string, error) {
+	return p.WrapKey(ctx, plaintext)
+}
+
 // Decrypt unwraps ciphertext with the specified key version. Historical KEKs
 // remain available after RotateKEK so older chunk DEKs continue to decrypt.
-func (p *LocalProvider) Decrypt(ctx context.Context, ciphertext []byte, keyID string) ([]byte, error) {
+func (p *LocalProvider) UnwrapKey(ctx context.Context, ciphertext []byte, keyID string) ([]byte, error) {
 	if err := validateContext(ctx); err != nil {
 		return nil, err
 	}
@@ -107,6 +227,11 @@ func (p *LocalProvider) Decrypt(ctx context.Context, ciphertext []byte, keyID st
 		return nil, fmt.Errorf("local KMS decrypt: %w", err)
 	}
 	return plaintext, nil
+}
+
+// Decrypt is a compatibility alias for UnwrapKey.
+func (p *LocalProvider) Decrypt(ctx context.Context, ciphertext []byte, keyID string) ([]byte, error) {
+	return p.UnwrapKey(ctx, ciphertext, keyID)
 }
 
 // GenerateDataKey returns a random AES-256 key and its wrapped form.
@@ -158,9 +283,42 @@ func (p *LocalProvider) RotateKEK(ctx context.Context) error {
 	}
 	p.nextID++
 	p.keys[keyID] = append([]byte(nil), key...)
+	previousID := p.activeID
 	p.activeID = keyID
+	if err := p.persistLocked(); err != nil {
+		wipe(p.keys[keyID])
+		delete(p.keys, keyID)
+		p.activeID = previousID
+		p.nextID--
+		p.mu.Unlock()
+		wipe(key)
+		return err
+	}
 	p.mu.Unlock()
 	wipe(key)
+	return nil
+}
+
+// RotateKey satisfies Provider using the existing local rotation behavior.
+func (p *LocalProvider) RotateKey(ctx context.Context) error { return p.RotateKEK(ctx) }
+
+// GetKeyID returns the current active KEK version identifier.
+func (p *LocalProvider) GetKeyID() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.activeID
+}
+
+// HealthCheck validates context and verifies the active KEK is available.
+func (p *LocalProvider) HealthCheck(ctx context.Context) error {
+	if err := validateContext(ctx); err != nil {
+		return err
+	}
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if len(p.keys[p.activeID]) != 32 {
+		return errors.New("local KMS active KEK is unavailable")
+	}
 	return nil
 }
 

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
+	"runtime"
 	"testing"
 )
 
@@ -187,6 +189,7 @@ func TestLocalProviderDataKeyAndRotationContextCancellation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if _, _, _, err := provider.GenerateDataKey(ctx, AES256KeySpec); !errors.Is(err, context.Canceled) {
@@ -194,5 +197,46 @@ func TestLocalProviderDataKeyAndRotationContextCancellation(t *testing.T) {
 	}
 	if err := provider.RotateKEK(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("RotateKEK error = %v, want context.Canceled", err)
+	}
+}
+
+func TestFileBackedLocalProviderPersistsKeyVersions(t *testing.T) {
+	path := t.TempDir() + "/local-kek.json"
+	provider, err := OpenLocalProvider(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldKeyID := provider.GetKeyID()
+	oldWrapped, keyID, err := provider.WrapKey(context.Background(), []byte("old DEK"))
+	if err != nil || keyID != oldKeyID {
+		t.Fatalf("WrapKey = (%q, %v)", keyID, err)
+	}
+	if err := provider.RotateKey(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	newKeyID := provider.GetKeyID()
+	if newKeyID == oldKeyID {
+		t.Fatal("rotation did not change active key ID")
+	}
+	reopened, err := OpenLocalProvider(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reopened.GetKeyID() != newKeyID {
+		t.Fatalf("reopened active key ID = %q, want %q", reopened.GetKeyID(), newKeyID)
+	}
+	decoded, err := reopened.UnwrapKey(context.Background(), oldWrapped, oldKeyID)
+	if err != nil || string(decoded) != "old DEK" {
+		t.Fatalf("old key version unwrap = (%q, %v)", decoded, err)
+	}
+	if err := reopened.HealthCheck(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runtime.GOOS != "windows" && info.Mode().Perm()&0o077 != 0 {
+		t.Fatalf("key file permissions are too broad: %o", info.Mode().Perm())
 	}
 }

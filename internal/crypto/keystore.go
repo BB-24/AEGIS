@@ -4,16 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/aegis/aegis/internal/crypto/kms"
 )
 
-var ErrRotationUnsupported = errors.New("KMS provider does not support KEK rotation")
-
-// KMSProvider wraps and unwraps keys using a KMS-managed key encryption key.
-type KMSProvider interface {
-	Encrypt(ctx context.Context, plaintext []byte) (ciphertext []byte, keyID string, err error)
-	Decrypt(ctx context.Context, ciphertext []byte, keyID string) ([]byte, error)
-	GenerateDataKey(ctx context.Context, keySpec string) (plaintext, ciphertext []byte, keyID string, err error)
-}
+var ErrRotationUnsupported = kms.ErrRotationUnsupported
 
 // KeyManager provides the key operations used by chunk envelope encryption.
 type KeyManager interface {
@@ -24,13 +19,13 @@ type KeyManager interface {
 
 // ProviderKeyManager adapts a KMS provider to the chunk key-management API.
 type ProviderKeyManager struct {
-	provider KMSProvider
+	provider kms.Provider
 }
 
 var _ KeyManager = (*ProviderKeyManager)(nil)
 
 // NewKeyManager adapts a KMS provider for use by the AES-GCM chunk encryptor.
-func NewKeyManager(provider KMSProvider) (*ProviderKeyManager, error) {
+func NewKeyManager(provider kms.Provider) (*ProviderKeyManager, error) {
 	if provider == nil {
 		return nil, errors.New("KMS provider is nil")
 	}
@@ -47,7 +42,7 @@ func (m *ProviderKeyManager) WrapKey(ctx context.Context, dek []byte) ([]byte, s
 	}
 	keyMaterial := append([]byte(nil), dek...)
 	defer zeroize(keyMaterial)
-	wrapped, keyID, err := m.provider.Encrypt(ctx, keyMaterial)
+	wrapped, keyID, err := m.provider.WrapKey(ctx, keyMaterial)
 	if err != nil {
 		zeroize(wrapped)
 		return nil, "", fmt.Errorf("KMS wrap DEK: %w", err)
@@ -70,7 +65,7 @@ func (m *ProviderKeyManager) UnwrapKey(ctx context.Context, wrappedDEK []byte, k
 	if keyID == "" {
 		return nil, errors.New("KMS key ID is empty")
 	}
-	dek, err := m.provider.Decrypt(ctx, wrappedDEK, keyID)
+	dek, err := m.provider.UnwrapKey(ctx, wrappedDEK, keyID)
 	if err != nil {
 		zeroize(dek)
 		return nil, fmt.Errorf("KMS unwrap DEK: %w", err)
@@ -87,13 +82,7 @@ func (m *ProviderKeyManager) RotateKEK(ctx context.Context) error {
 	if err := validateContext(ctx); err != nil {
 		return err
 	}
-	rotator, ok := m.provider.(interface {
-		RotateKEK(context.Context) error
-	})
-	if !ok {
-		return ErrRotationUnsupported
-	}
-	if err := rotator.RotateKEK(ctx); err != nil {
+	if err := m.provider.RotateKey(ctx); err != nil {
 		return fmt.Errorf("rotate KMS KEK: %w", err)
 	}
 	return nil

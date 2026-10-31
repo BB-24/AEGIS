@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"testing"
+
+	"github.com/aegis/aegis/internal/crypto/kms"
 )
 
 type mockKMS struct {
@@ -13,7 +15,7 @@ type mockKMS struct {
 	err     error
 }
 
-func (m *mockKMS) Encrypt(_ context.Context, plaintext []byte) ([]byte, string, error) {
+func (m *mockKMS) WrapKey(_ context.Context, plaintext []byte) ([]byte, string, error) {
 	if m.err != nil {
 		return nil, "", m.err
 	}
@@ -23,7 +25,7 @@ func (m *mockKMS) Encrypt(_ context.Context, plaintext []byte) ([]byte, string, 
 	return append([]byte(nil), m.wrapped...), m.keyID, nil
 }
 
-func (m *mockKMS) Decrypt(_ context.Context, ciphertext []byte, keyID string) ([]byte, error) {
+func (m *mockKMS) UnwrapKey(_ context.Context, ciphertext []byte, keyID string) ([]byte, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -33,9 +35,11 @@ func (m *mockKMS) Decrypt(_ context.Context, ciphertext []byte, keyID string) ([
 	return append([]byte(nil), ciphertext[len("wrapped:"):]...), nil
 }
 
-func (m *mockKMS) GenerateDataKey(_ context.Context, _ string) ([]byte, []byte, string, error) {
-	return nil, nil, "", errors.New("not implemented")
-}
+func (*mockKMS) GetKeyID() string { return "mock-key" }
+
+func (*mockKMS) RotateKey(context.Context) error { return kms.ErrRotationUnsupported }
+
+func (*mockKMS) HealthCheck(context.Context) error { return nil }
 
 func TestProviderKeyManagerWrapUnwrapAndRotate(t *testing.T) {
 	provider := &mockKMS{}
@@ -138,18 +142,20 @@ type rotatingMockKMS struct {
 	err error
 }
 
-func (m *rotatingMockKMS) RotateKEK(context.Context) error { return m.err }
+func (m *rotatingMockKMS) RotateKey(context.Context) error { return m.err }
 
 type emptyOutputKMS struct{}
 
-func (*emptyOutputKMS) Encrypt(context.Context, []byte) ([]byte, string, error) {
+func (*emptyOutputKMS) WrapKey(context.Context, []byte) ([]byte, string, error) {
 	return nil, "", nil
 }
 
-func (*emptyOutputKMS) Decrypt(context.Context, []byte, string) ([]byte, error) {
+func (*emptyOutputKMS) UnwrapKey(context.Context, []byte, string) ([]byte, error) {
 	return []byte("wrong-sized-key"), nil
 }
 
-func (*emptyOutputKMS) GenerateDataKey(context.Context, string) ([]byte, []byte, string, error) {
-	return nil, nil, "", nil
-}
+func (*emptyOutputKMS) GetKeyID() string { return "test" }
+
+func (*emptyOutputKMS) RotateKey(context.Context) error { return nil }
+
+func (*emptyOutputKMS) HealthCheck(context.Context) error { return nil }

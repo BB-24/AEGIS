@@ -11,6 +11,8 @@ import (
 	"github.com/aegis/aegis/internal/crypto/kms"
 )
 
+const testKeyID = "test"
+
 func newTestEncryptor(t testing.TB) (*AESGCM, *kms.LocalProvider) {
 	t.Helper()
 	provider, err := kms.NewLocalProvider()
@@ -257,9 +259,9 @@ func (m testKeyManager) WrapKey(_ context.Context, dek []byte) ([]byte, string, 
 		return nil, "", errors.New("empty input")
 	}
 	if m.emptyWrapped {
-		return nil, "test", nil
+		return nil, testKeyID, nil
 	}
-	return []byte("wrapped"), "test", nil
+	return []byte("wrapped"), testKeyID, nil
 }
 
 func (m testKeyManager) UnwrapKey(context.Context, []byte, string) ([]byte, error) {

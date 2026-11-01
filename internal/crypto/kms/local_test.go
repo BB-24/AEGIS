@@ -100,7 +100,8 @@ func TestLocalProviderValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := provider.Encrypt(nil, []byte("data")); err == nil {
+	var nilContext context.Context
+	if _, _, err := provider.Encrypt(nilContext, []byte("data")); err == nil {
 		t.Fatal("accepted nil context")
 	}
 	ctx, cancel := context.WithCancel(context.Background())

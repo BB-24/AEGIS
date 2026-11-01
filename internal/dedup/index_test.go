@@ -1,6 +1,7 @@
 package dedup
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"sync"
@@ -85,8 +86,8 @@ func TestPersistentIndexReopens(t *testing.T) {
 	defer reopened.Close()
 	meta, ok := reopened.Lookup(hash)
 	if !ok || meta.RefCount != 1 || meta.Hash != hash || meta.LogicalSize != 42 ||
-		meta.KeyID != "test-kek" || string(meta.Nonce) != string([]byte{1, 2, 3}) ||
-		string(meta.WrappedDEK) != string([]byte{4, 5, 6}) {
+		meta.KeyID != "test-kek" || !bytes.Equal(meta.Nonce, []byte{1, 2, 3}) ||
+		!bytes.Equal(meta.WrappedDEK, []byte{4, 5, 6}) {
 		t.Fatalf("reopened metadata = (%+v, %v)", meta, ok)
 	}
 }
@@ -101,22 +102,22 @@ func TestIndexConcurrentReferenceUpdates(t *testing.T) {
 	const workers = 24
 	const increments = 50
 	var group sync.WaitGroup
-	errors := make(chan error, workers)
+	errCh := make(chan error, workers)
 	for worker := 0; worker < workers; worker++ {
 		group.Add(1)
 		go func(worker int) {
 			defer group.Done()
 			for n := 0; n < increments; n++ {
 				if err := index.IncRef(hash); err != nil {
-					errors <- fmt.Errorf("worker %d increment: %w", worker, err)
+					errCh <- fmt.Errorf("worker %d increment: %w", worker, err)
 					return
 				}
 			}
 		}(worker)
 	}
 	group.Wait()
-	close(errors)
-	for err := range errors {
+	close(errCh)
+	for err := range errCh {
 		t.Error(err)
 	}
 	meta, ok := index.Lookup(hash)

@@ -41,7 +41,12 @@ type Processor struct {
 }
 
 // New creates a chunk processor with explicit storage and encryption dependencies.
-func New(index dedup.DedupIndex, compressor compression.Compressor, encryptor Encryptor, store ChunkStore) (*Processor, error) {
+func New(
+	index dedup.DedupIndex,
+	compressor compression.Compressor,
+	encryptor Encryptor,
+	store ChunkStore,
+) (*Processor, error) {
 	if index == nil {
 		return nil, errors.New("dedup index is nil")
 	}
@@ -60,42 +65,84 @@ func New(index dedup.DedupIndex, compressor compression.Compressor, encryptor En
 // Process stores a new chunk or increments the reference count of an available
 // chunk. Calls on one Processor are serialized to prevent duplicate work.
 func (p *Processor) Process(ctx context.Context, input chunker.Chunk) (ProcessedChunk, error) {
-	if ctx == nil {
-		return ProcessedChunk{}, errors.New("chunk processing context is nil")
-	}
-	if err := ctx.Err(); err != nil {
-		return ProcessedChunk{}, fmt.Errorf("chunk processing canceled: %w", err)
-	}
-	if len(input.Data) == 0 {
-		return ProcessedChunk{}, errors.New("chunk data is empty")
-	}
-	if input.Length != len(input.Data) {
-		return ProcessedChunk{}, fmt.Errorf("chunk length %d does not match data length %d", input.Length, len(input.Data))
-	}
-	hash := sha256.Sum256(input.Data)
-	if input.Hash != hash {
-		return ProcessedChunk{}, errors.New("chunk SHA-256 does not match chunk data")
+	hash, err := validateChunk(ctx, input)
+	if err != nil {
+		return ProcessedChunk{}, err
 	}
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if existing, ok := p.index.Lookup(hash); ok {
-		if existing == nil {
-			return ProcessedChunk{}, fmt.Errorf("dedup index returned nil metadata for chunk %x", hash)
-		}
-		if existing.State == dedup.Available && existing.RefCount > 0 {
-			if err := p.index.IncRef(hash); err != nil {
-				return ProcessedChunk{}, fmt.Errorf("increment reference for chunk %x: %w", hash, err)
-			}
-			existing.RefCount++
-			return ProcessedChunk{Metadata: *existing, Deduplicated: true}, nil
-		}
-		if existing.State != dedup.Deleted {
-			return ProcessedChunk{}, fmt.Errorf("chunk %x is not available for deduplication (state %q)", hash, existing.State)
-		}
+	if result, found, err := p.referenceExisting(hash); err != nil {
+		return ProcessedChunk{}, err
+	} else if found {
+		return result, nil
 	}
 
+	return p.storeNewChunk(ctx, input, hash)
+}
+
+func validateChunk(ctx context.Context, input chunker.Chunk) ([32]byte, error) {
+	if ctx == nil {
+		return [32]byte{}, errors.New("chunk processing context is nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return [32]byte{}, fmt.Errorf("chunk processing canceled: %w", err)
+	}
+	if len(input.Data) == 0 {
+		return [32]byte{}, errors.New("chunk data is empty")
+	}
+	if input.Length != len(input.Data) {
+		return [32]byte{}, fmt.Errorf(
+			"chunk length %d does not match data length %d",
+			input.Length,
+			len(input.Data),
+		)
+	}
+	hash := sha256.Sum256(input.Data)
+	if input.Hash != hash {
+		return [32]byte{}, errors.New("chunk SHA-256 does not match chunk data")
+	}
+	return hash, nil
+}
+
+func (p *Processor) referenceExisting(hash [32]byte) (ProcessedChunk, bool, error) {
+	existing, ok := p.index.Lookup(hash)
+	if !ok {
+		return ProcessedChunk{}, false, nil
+	}
+	if existing == nil {
+		return ProcessedChunk{}, false, fmt.Errorf(
+			"dedup index returned nil metadata for chunk %x",
+			hash,
+		)
+	}
+	if existing.State != dedup.Available || existing.RefCount <= 0 {
+		if existing.State == dedup.Deleted {
+			return ProcessedChunk{}, false, nil
+		}
+		return ProcessedChunk{}, false, fmt.Errorf(
+			"chunk %x is not available for deduplication (state %q)",
+			hash,
+			existing.State,
+		)
+	}
+	if err := p.index.IncRef(hash); err != nil {
+		return ProcessedChunk{}, false, fmt.Errorf(
+			"increment reference for chunk %x: %w",
+			hash,
+			err,
+		)
+	}
+	existing.RefCount++
+	return ProcessedChunk{Metadata: *existing, Deduplicated: true}, true, nil
+}
+
+func (p *Processor) storeNewChunk(
+	ctx context.Context,
+	input chunker.Chunk,
+	hash [32]byte,
+) (ProcessedChunk, error) {
 	compressed, err := p.compressor.Compress(input.Data)
 	if err != nil {
 		return ProcessedChunk{}, fmt.Errorf("compress chunk %x: %w", hash, err)
@@ -104,7 +151,10 @@ func (p *Processor) Process(ctx context.Context, input chunker.Chunk) (Processed
 	if err != nil {
 		return ProcessedChunk{}, fmt.Errorf("encrypt chunk %x: %w", hash, err)
 	}
-	if len(encrypted.Ciphertext) == 0 || len(encrypted.Nonce) != aegiscrypto.NonceSize || len(encrypted.WrappedDEK) == 0 || encrypted.KeyID == "" {
+	if len(encrypted.Ciphertext) == 0 ||
+		len(encrypted.Nonce) != aegiscrypto.NonceSize ||
+		len(encrypted.WrappedDEK) == 0 ||
+		encrypted.KeyID == "" {
 		return ProcessedChunk{}, errors.New("encryptor returned incomplete chunk encryption metadata")
 	}
 	locations, err := p.store.Store(ctx, hash, encrypted.Ciphertext)
@@ -125,17 +175,26 @@ func (p *Processor) Process(ctx context.Context, input chunker.Chunk) (Processed
 		State:          dedup.Available,
 	}
 	if err := p.index.Add(hash, meta); err != nil {
-		if errors.Is(err, dedup.ErrChunkExists) {
-			existing, ok := p.index.Lookup(hash)
-			if ok && existing != nil && existing.State == dedup.Available && existing.RefCount > 0 {
-				if incrementErr := p.index.IncRef(hash); incrementErr != nil {
-					return ProcessedChunk{}, fmt.Errorf("register stored chunk %x: %w; increment existing reference: %v", hash, err, incrementErr)
-				}
-				existing.RefCount++
-				return ProcessedChunk{Metadata: *existing, Deduplicated: true}, nil
-			}
+		if !errors.Is(err, dedup.ErrChunkExists) {
+			return ProcessedChunk{}, fmt.Errorf("register chunk %x after storage: %w", hash, err)
 		}
-		return ProcessedChunk{}, fmt.Errorf("register chunk %x after storage: %w", hash, err)
+		return p.registerDuplicate(hash, err)
 	}
 	return ProcessedChunk{Metadata: meta}, nil
+}
+
+func (p *Processor) registerDuplicate(hash [32]byte, addErr error) (ProcessedChunk, error) {
+	existing, found, referenceErr := p.referenceExisting(hash)
+	if referenceErr != nil {
+		return ProcessedChunk{}, fmt.Errorf(
+			"register stored chunk %x: %w; increment existing reference: %w",
+			hash,
+			addErr,
+			referenceErr,
+		)
+	}
+	if !found {
+		return ProcessedChunk{}, fmt.Errorf("register chunk %x after storage: %w", hash, addErr)
+	}
+	return existing, nil
 }

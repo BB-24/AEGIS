@@ -155,8 +155,8 @@ func (i *Index) Lookup(hash [32]byte) (*ChunkMetadata, bool) {
 	if !ok {
 		return nil, false
 	}
-	copy := cloneMetadata(meta)
-	return &copy, true
+	cloned := cloneMetadata(meta)
+	return &cloned, true
 }
 
 // Add registers a chunk with one reference. Reusing a deleted hash replaces

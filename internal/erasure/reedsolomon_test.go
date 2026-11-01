@@ -176,8 +176,11 @@ func TestEncodeDecodeBoundarySizes(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ParseShard size %d index %d: %v", size, i, err)
 			}
-			wantShardSize := shardPayloadSize(uint64(size))
-			if uint64(len(parsed.Payload)) != wantShardSize {
+			wantShardSize := size / DataShards
+			if size%DataShards != 0 {
+				wantShardSize++
+			}
+			if len(parsed.Payload) != wantShardSize {
 				t.Fatalf("payload size for input %d = %d, want %d", size, len(parsed.Payload), wantShardSize)
 			}
 		}

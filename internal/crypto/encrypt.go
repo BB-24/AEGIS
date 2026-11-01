@@ -144,7 +144,11 @@ func (e *AESGCM) DecryptChunk(ciphertext, nonce, wrappedDEK []byte, keyID string
 }
 
 // DecryptChunkWithContext performs a cancellable KMS unwrap followed by GCM authentication.
-func (e *AESGCM) DecryptChunkWithContext(ctx context.Context, ciphertext, nonce, wrappedDEK []byte, keyID string) ([]byte, error) {
+func (e *AESGCM) DecryptChunkWithContext(
+	ctx context.Context,
+	ciphertext, nonce, wrappedDEK []byte,
+	keyID string,
+) ([]byte, error) {
 	if err := validateContext(ctx); err != nil {
 		return nil, err
 	}

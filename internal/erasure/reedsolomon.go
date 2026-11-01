@@ -44,8 +44,11 @@ func NewEncoder() (Encoder, error) {
 }
 
 func (e *reedSolomonEncoder) Encode(data []byte) ([][]byte, error) {
-	payloadSize := int(shardPayloadSize(uint64(len(data))))
-	if uint64(payloadSize) > uint64(^uint32(0)) {
+	payloadSize := len(data) / DataShards
+	if len(data)%DataShards != 0 {
+		payloadSize++
+	}
+	if uint64(len(data)) > uint64(^uint32(0))*DataShards {
 		return nil, errors.New("shard payload exceeds shard format limit")
 	}
 
@@ -87,6 +90,27 @@ func (e *reedSolomonEncoder) Decode(shardFrames [][]byte) ([]byte, error) {
 		return nil, fmt.Errorf("%w: got %d", ErrInvalidShardCount, len(shardFrames))
 	}
 
+	payloads, originalSize, chunkHash, validCount, err := parseShardFrames(shardFrames)
+	if err != nil {
+		return nil, err
+	}
+	if validCount < DataShards {
+		return nil, fmt.Errorf("%w: got %d", ErrInsufficientShards, validCount)
+	}
+	maxInt := uint64(^uint(0) >> 1)
+	if originalSize > maxInt {
+		return nil, errors.New("original size exceeds platform limit")
+	}
+	if err := validatePayloadSizes(payloads, originalSize); err != nil {
+		return nil, err
+	}
+	if originalSize == 0 {
+		return decodeEmptyChunk(chunkHash)
+	}
+	return decodeDataShards(e.codec, payloads, int(originalSize), chunkHash)
+}
+
+func parseShardFrames(shardFrames [][]byte) ([][]byte, uint64, [sha256.Size]byte, int, error) {
 	payloads := make([][]byte, TotalShards)
 	seen := make([]bool, TotalShards)
 	var originalSize uint64
@@ -103,38 +127,43 @@ func (e *reedSolomonEncoder) Decode(shardFrames [][]byte) ([]byte, error) {
 			continue
 		}
 		if seen[shard.Index] {
-			return nil, fmt.Errorf("duplicate shard index %d", shard.Index)
+			return nil, 0, [sha256.Size]byte{}, 0, fmt.Errorf("duplicate shard index %d", shard.Index)
 		}
 		seen[shard.Index] = true
 		if !haveMetadata {
 			originalSize, chunkHash, haveMetadata = shard.OriginalSize, shard.ChunkHash, true
 		} else if shard.OriginalSize != originalSize || shard.ChunkHash != chunkHash {
-			return nil, errors.New("shard metadata does not match")
+			return nil, 0, [sha256.Size]byte{}, 0, errors.New("shard metadata does not match")
 		}
 		payloads[shard.Index] = shard.Payload
 		validCount++
 	}
+	return payloads, originalSize, chunkHash, validCount, nil
+}
 
-	if validCount < DataShards {
-		return nil, fmt.Errorf("%w: got %d", ErrInsufficientShards, validCount)
-	}
-	maxInt := uint64(^uint(0) >> 1)
-	if originalSize > maxInt {
-		return nil, errors.New("original size exceeds platform limit")
-	}
+func validatePayloadSizes(payloads [][]byte, originalSize uint64) error {
 	expectedPayloadSize := shardPayloadSize(originalSize)
 	for index, payload := range payloads {
 		if payload != nil && uint64(len(payload)) != expectedPayloadSize {
-			return nil, fmt.Errorf("shard %d payload size does not match metadata", index)
+			return fmt.Errorf("shard %d payload size does not match metadata", index)
 		}
 	}
+	return nil
+}
 
-	if originalSize == 0 {
-		if sha256.Sum256(nil) != chunkHash {
-			return nil, errors.New("reconstructed chunk hash mismatch")
-		}
-		return []byte{}, nil
+func decodeEmptyChunk(chunkHash [sha256.Size]byte) ([]byte, error) {
+	if sha256.Sum256(nil) != chunkHash {
+		return nil, errors.New("reconstructed chunk hash mismatch")
 	}
+	return []byte{}, nil
+}
+
+func decodeDataShards(
+	codec reedsolomon.Encoder,
+	payloads [][]byte,
+	originalSize int,
+	chunkHash [sha256.Size]byte,
+) ([]byte, error) {
 	dataShardsPresent := true
 	for index := 0; index < DataShards; index++ {
 		if payloads[index] == nil {
@@ -143,12 +172,12 @@ func (e *reedSolomonEncoder) Decode(shardFrames [][]byte) ([]byte, error) {
 		}
 	}
 	if !dataShardsPresent {
-		if err := e.codec.ReconstructData(payloads); err != nil {
+		if err := codec.ReconstructData(payloads); err != nil {
 			return nil, fmt.Errorf("reconstruct data shards: %w", err)
 		}
 	}
 
-	decoded := make([]byte, int(originalSize))
+	decoded := make([]byte, originalSize)
 	offset := 0
 	for index := 0; index < DataShards && offset < len(decoded); index++ {
 		offset += copy(decoded[offset:], payloads[index])

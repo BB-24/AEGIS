@@ -129,7 +129,8 @@ func (p *VaultProvider) RotateKey(ctx context.Context) error {
 	if err := validateContext(ctx); err != nil {
 		return err
 	}
-	_, err := p.client.Logical().WriteWithContext(ctx, p.transitPath+"/keys/"+p.keyName+"/rotate", map[string]interface{}{})
+	rotationPath := p.transitPath + "/keys/" + p.keyName + "/rotate"
+	_, err := p.client.Logical().WriteWithContext(ctx, rotationPath, map[string]interface{}{})
 	if err != nil {
 		return fmt.Errorf("rotate Vault Transit key: %w", err)
 	}

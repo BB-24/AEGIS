@@ -1,12 +1,15 @@
 package crypto
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"testing"
 
 	"github.com/aegis/aegis/internal/crypto/kms"
 )
+
+const mockKeyID = "mock-key"
 
 type mockKMS struct {
 	wrapped []byte
@@ -21,7 +24,7 @@ func (m *mockKMS) WrapKey(_ context.Context, plaintext []byte) ([]byte, string, 
 	}
 	m.plain = append(m.plain[:0], plaintext...)
 	m.wrapped = append([]byte("wrapped:"), plaintext...)
-	m.keyID = "mock-key"
+	m.keyID = mockKeyID
 	return append([]byte(nil), m.wrapped...), m.keyID, nil
 }
 
@@ -35,7 +38,7 @@ func (m *mockKMS) UnwrapKey(_ context.Context, ciphertext []byte, keyID string) 
 	return append([]byte(nil), ciphertext[len("wrapped:"):]...), nil
 }
 
-func (*mockKMS) GetKeyID() string { return "mock-key" }
+func (*mockKMS) GetKeyID() string { return mockKeyID }
 
 func (*mockKMS) RotateKey(context.Context) error { return kms.ErrRotationUnsupported }
 
@@ -55,14 +58,14 @@ func TestProviderKeyManagerWrapUnwrapAndRotate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if keyID != "mock-key" {
+	if keyID != mockKeyID {
 		t.Fatalf("key ID = %q", keyID)
 	}
 	unwrapped, err := manager.UnwrapKey(context.Background(), wrapped, keyID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(unwrapped) != string(dek) {
+	if !bytes.Equal(unwrapped, dek) {
 		t.Fatal("unwrapped key differs from original")
 	}
 	if err := manager.RotateKEK(context.Background()); !errors.Is(err, ErrRotationUnsupported) {

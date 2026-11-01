@@ -1,6 +1,7 @@
 package kms
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -56,7 +57,7 @@ func TestVaultProviderWrapUnwrapRotateAndHealth(t *testing.T) {
 		t.Fatal(err)
 	}
 	decoded, err := provider.UnwrapKey(context.Background(), wrapped, keyID)
-	if err != nil || string(decoded) != string(dek) {
+	if err != nil || !bytes.Equal(decoded, dek) {
 		t.Fatalf("Vault roundtrip = (%d bytes, %v)", len(decoded), err)
 	}
 	if err := provider.RotateKey(context.Background()); err != nil {

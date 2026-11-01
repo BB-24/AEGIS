@@ -20,7 +20,11 @@ type awsKMSAPI interface {
 	Encrypt(context.Context, *awskms.EncryptInput, ...func(*awskms.Options)) (*awskms.EncryptOutput, error)
 	Decrypt(context.Context, *awskms.DecryptInput, ...func(*awskms.Options)) (*awskms.DecryptOutput, error)
 	DescribeKey(context.Context, *awskms.DescribeKeyInput, ...func(*awskms.Options)) (*awskms.DescribeKeyOutput, error)
-	EnableKeyRotation(context.Context, *awskms.EnableKeyRotationInput, ...func(*awskms.Options)) (*awskms.EnableKeyRotationOutput, error)
+	EnableKeyRotation(
+		context.Context,
+		*awskms.EnableKeyRotationInput,
+		...func(*awskms.Options),
+	) (*awskms.EnableKeyRotationOutput, error)
 }
 
 // AWSProvider uses AWS KMS symmetric customer-managed keys.

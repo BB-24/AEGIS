@@ -19,8 +19,16 @@ type gcpKMSAPI interface {
 	Encrypt(context.Context, *kmspb.EncryptRequest, ...gax.CallOption) (*kmspb.EncryptResponse, error)
 	Decrypt(context.Context, *kmspb.DecryptRequest, ...gax.CallOption) (*kmspb.DecryptResponse, error)
 	GetCryptoKey(context.Context, *kmspb.GetCryptoKeyRequest, ...gax.CallOption) (*kmspb.CryptoKey, error)
-	CreateCryptoKeyVersion(context.Context, *kmspb.CreateCryptoKeyVersionRequest, ...gax.CallOption) (*kmspb.CryptoKeyVersion, error)
-	UpdateCryptoKeyPrimaryVersion(context.Context, *kmspb.UpdateCryptoKeyPrimaryVersionRequest, ...gax.CallOption) (*kmspb.CryptoKey, error)
+	CreateCryptoKeyVersion(
+		context.Context,
+		*kmspb.CreateCryptoKeyVersionRequest,
+		...gax.CallOption,
+	) (*kmspb.CryptoKeyVersion, error)
+	UpdateCryptoKeyPrimaryVersion(
+		context.Context,
+		*kmspb.UpdateCryptoKeyPrimaryVersionRequest,
+		...gax.CallOption,
+	) (*kmspb.CryptoKey, error)
 }
 
 // GCPProvider uses Google Cloud KMS CryptoKeys and application-default credentials.

@@ -76,7 +76,8 @@ func writeShardHeader(frame []byte, shard Shard) error {
 	copy(frame[12:44], shard.ChunkHash[:])
 	binary.BigEndian.PutUint32(frame[44:48], crc32.Checksum(payload, castagnoliTable))
 	binary.BigEndian.PutUint64(frame[48:56], shard.OriginalSize)
-	binary.BigEndian.PutUint32(frame[56:60], uint32(len(payload)))
+	// The payload length is bounded to uint32 above.
+	binary.BigEndian.PutUint32(frame[56:60], uint32(len(payload))) //nolint:gosec
 	return nil
 }
 
@@ -85,23 +86,11 @@ func ParseShard(frame []byte) (Shard, error) {
 	if len(frame) < ShardHeaderSize {
 		return Shard{}, errors.New("shard frame is shorter than its header")
 	}
-	if frame[0] != shardMagic[0] || frame[1] != shardMagic[1] ||
-		frame[2] != shardMagic[2] || frame[3] != shardMagic[3] {
-		return Shard{}, errors.New("invalid shard magic")
-	}
-	if frame[4] != ShardVersion {
-		return Shard{}, fmt.Errorf("unsupported shard version %d", frame[4])
-	}
-	if frame[5] >= TotalShards || frame[6] != TotalShards ||
-		frame[7] != DataShards || frame[8] != ParityShards {
-		return Shard{}, errors.New("invalid shard geometry")
-	}
-	if frame[9] != 0 || frame[10] != 0 || frame[11] != 0 ||
-		frame[60] != 0 || frame[61] != 0 || frame[62] != 0 || frame[63] != 0 {
-		return Shard{}, errors.New("nonzero reserved shard header bytes")
+	if err := validateShardHeader(frame); err != nil {
+		return Shard{}, err
 	}
 	payloadSize := binary.BigEndian.Uint32(frame[56:60])
-	if uint64(payloadSize) != uint64(len(frame)-ShardHeaderSize) {
+	if uint64(len(frame)) != uint64(payloadSize)+ShardHeaderSize {
 		return Shard{}, errors.New("shard payload length does not match frame")
 	}
 	payload := frame[ShardHeaderSize:]
@@ -110,8 +99,7 @@ func ParseShard(frame []byte) (Shard, error) {
 		return Shard{}, errors.New("shard payload CRC32C mismatch")
 	}
 	originalSize := binary.BigEndian.Uint64(frame[48:56])
-	expectedSize := shardPayloadSize(originalSize)
-	if uint64(payloadSize) != expectedSize {
+	if uint64(payloadSize) != shardPayloadSize(originalSize) {
 		return Shard{}, errors.New("shard payload length does not match original size")
 	}
 	var hash [32]byte
@@ -122,6 +110,37 @@ func ParseShard(frame []byte) (Shard, error) {
 		ChunkHash:    hash,
 		Payload:      payload,
 	}, nil
+}
+
+func validateShardHeader(frame []byte) error {
+	if !hasShardMagic(frame) {
+		return errors.New("invalid shard magic")
+	}
+	if frame[4] != ShardVersion {
+		return fmt.Errorf("unsupported shard version %d", frame[4])
+	}
+	if !hasValidShardGeometry(frame) {
+		return errors.New("invalid shard geometry")
+	}
+	if !reservedShardBytesAreZero(frame) {
+		return errors.New("nonzero reserved shard header bytes")
+	}
+	return nil
+}
+
+func hasShardMagic(frame []byte) bool {
+	return frame[0] == shardMagic[0] && frame[1] == shardMagic[1] &&
+		frame[2] == shardMagic[2] && frame[3] == shardMagic[3]
+}
+
+func hasValidShardGeometry(frame []byte) bool {
+	return frame[5] < TotalShards && frame[6] == TotalShards &&
+		frame[7] == DataShards && frame[8] == ParityShards
+}
+
+func reservedShardBytesAreZero(frame []byte) bool {
+	return frame[9] == 0 && frame[10] == 0 && frame[11] == 0 &&
+		frame[60] == 0 && frame[61] == 0 && frame[62] == 0 && frame[63] == 0
 }
 
 func maxInt() int {

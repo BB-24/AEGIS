@@ -164,7 +164,10 @@ func (c *FastCDC) boundary(data []byte) (int, uint64) {
 }
 
 func normalizedMasks(avgSize int) (small, large uint64) {
-	bitsForAverage := bits.Len(uint(avgSize - 1))
+	if avgSize <= 1 {
+		return (uint64(1) << 1) - 1, (uint64(1) << 1) - 1
+	}
+	bitsForAverage := bits.Len(uint(avgSize - 1)) // #nosec G115 -- avgSize is positive after the guard above.
 	if bitsForAverage < 1 {
 		bitsForAverage = 1
 	}

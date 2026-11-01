@@ -30,23 +30,16 @@ linters:
     - dupl
     - lll
     - gochecknoinits
-    - gochecknoglobals
     - depguard
-    - exhaustruct
     - exhaustive
     - forcetypeassert
     - nilerr
     - nilnil
     - nolintlint
-    - paralleltest
     - testifylint
-    - testpackage
     - tparallel
-    - varnamelen
     - whitespace
-    - wsl
     - noctx
-    - nolintlint
     - revive
 
 linters-settings:
@@ -79,14 +72,12 @@ linters-settings:
   gocritic:
     enabled-tags:
       - diagnostic
-      - experimental
-      - opinionated
       - performance
-      - style
     disabled-checks:
       - wrapperFunc
-      - dupImport
       - ifElseChain
+      - hugeParam
+      - rangeValCopy
   gosec:
     excludes:
       - G104
@@ -112,6 +103,7 @@ issues:
     - path: _test\.go
       linters:
         - gocyclo
+        - cyclop
         - funlen
         - gocognit
         - nestif

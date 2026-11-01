@@ -3,10 +3,7 @@ package kms
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
-	"fmt"
-	"io"
 )
 
 var ErrRotationUnsupported = errors.New("KMS provider does not support manual key rotation")
@@ -18,14 +15,4 @@ type Provider interface {
 	GetKeyID() string
 	RotateKey(ctx context.Context) error
 	HealthCheck(ctx context.Context) error
-}
-
-// randomDataKey generates a fresh AES-256 data key for compatibility callers.
-func randomDataKey() ([]byte, error) {
-	dek := make([]byte, 32)
-	if _, err := io.ReadFull(rand.Reader, dek); err != nil {
-		wipe(dek)
-		return nil, fmt.Errorf("generate data key: %w", err)
-	}
-	return dek, nil
 }

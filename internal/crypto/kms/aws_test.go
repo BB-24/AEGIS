@@ -1,6 +1,7 @@
 package kms
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"testing"
@@ -10,8 +11,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"
 )
 
+const awsWrappedKey = "wrapped"
+
 type fakeAWSKMS struct {
-	ciphertext []byte
 	plaintext  []byte
 	encryptErr error
 	decryptErr error
@@ -25,7 +27,7 @@ func (f *fakeAWSKMS) Encrypt(_ context.Context, in *awskms.EncryptInput, _ ...fu
 		return nil, f.encryptErr
 	}
 	f.plaintext = append([]byte(nil), in.Plaintext...)
-	return &awskms.EncryptOutput{CiphertextBlob: []byte("wrapped"), KeyId: aws.String("arn:aws:kms:region:account:key/version")}, nil
+	return &awskms.EncryptOutput{CiphertextBlob: []byte(awsWrappedKey), KeyId: aws.String("arn:aws:kms:region:account:key/version")}, nil
 }
 
 func (f *fakeAWSKMS) Decrypt(_ context.Context, _ *awskms.DecryptInput, _ ...func(*awskms.Options)) (*awskms.DecryptOutput, error) {
@@ -58,14 +60,14 @@ func TestAWSProviderWrapUnwrapAndHealth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(wrapped) != "wrapped" || keyID != "arn:aws:kms:region:account:key/version" {
+	if !bytes.Equal(wrapped, []byte(awsWrappedKey)) || keyID != "arn:aws:kms:region:account:key/version" {
 		t.Fatalf("wrap result = (%q, %q)", wrapped, keyID)
 	}
 	decoded, err := provider.UnwrapKey(context.Background(), wrapped, keyID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(decoded) != string(dek) {
+	if !bytes.Equal(decoded, dek) {
 		t.Fatal("AWS provider roundtrip changed the DEK")
 	}
 	if err := provider.HealthCheck(context.Background()); err != nil {

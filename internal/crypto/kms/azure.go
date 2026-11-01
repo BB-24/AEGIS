@@ -23,8 +23,20 @@ type AzureConfig struct {
 
 type azureKeysClient interface {
 	GetKey(context.Context, string, string, *azkeys.GetKeyOptions) (azkeys.GetKeyResponse, error)
-	WrapKey(context.Context, string, string, azkeys.KeyOperationParameters, *azkeys.WrapKeyOptions) (azkeys.WrapKeyResponse, error)
-	UnwrapKey(context.Context, string, string, azkeys.KeyOperationParameters, *azkeys.UnwrapKeyOptions) (azkeys.UnwrapKeyResponse, error)
+	WrapKey(
+		context.Context,
+		string,
+		string,
+		azkeys.KeyOperationParameters,
+		*azkeys.WrapKeyOptions,
+	) (azkeys.WrapKeyResponse, error)
+	UnwrapKey(
+		context.Context,
+		string,
+		string,
+		azkeys.KeyOperationParameters,
+		*azkeys.UnwrapKeyOptions,
+	) (azkeys.UnwrapKeyResponse, error)
 	RotateKey(context.Context, string, *azkeys.RotateKeyOptions) (azkeys.RotateKeyResponse, error)
 }
 

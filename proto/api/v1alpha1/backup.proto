@@ -4,7 +4,8 @@ package aegis.api.v1alpha1;
 
 option go_package = "github.com/aegis/aegis/pkg/proto/generated/api/v1alpha1";
 
-import "aegis/api/v1alpha1/common.proto";
+import "api/v1alpha1/common.proto";
+import "google/protobuf/timestamp.proto";
 
 // Backup service for managing backup operations
 

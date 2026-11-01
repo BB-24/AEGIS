@@ -1,5 +1,7 @@
 version: v2
-name: buf.build/aegis/aegis
+modules:
+  - path: proto
+    name: buf.build/aegis/aegis
 deps:
   - buf.build/googleapis/googleapis
   - buf.build/grpc-ecosystem/grpc-gateway
@@ -7,11 +9,13 @@ deps:
 
 lint:
   use:
-    - DEFAULT
+    - STANDARD
   except:
     - PACKAGE_VERSION_SUFFIX
-    - PACKAGE_NO_DELETE
-    - PACKAGE_NO_DEPRECATED
+    - PACKAGE_DIRECTORY_MATCH
+    - RPC_REQUEST_RESPONSE_UNIQUE
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
 
 breaking:
   use:

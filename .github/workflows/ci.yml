@@ -10,7 +10,6 @@ on:
 env:
   GO_VERSION: '1.23'
   GOLANGCI_LINT_VERSION: 'v1.61.0'
-  BUF_VERSION: 'v1.47.2'
 
 jobs:
   # =============================================================================
@@ -58,7 +57,7 @@ jobs:
 
       - name: Install protobuf tools
         run: |
-          go install github.com/bufbuild/buf/cmd/buf@${BUF_VERSION}
+          make install-proto-tools
 
       - name: Generate code
         run: make generate

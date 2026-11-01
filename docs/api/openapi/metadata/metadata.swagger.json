@@ -1,0 +1,432 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "metadata/metadata.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "MetadataService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {},
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1alpha1Chunk": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "volumeId": {
+          "type": "string"
+        },
+        "offset": {
+          "type": "string",
+          "format": "int64"
+        },
+        "size": {
+          "type": "string",
+          "format": "int64"
+        },
+        "checksum": {
+          "type": "string"
+        },
+        "tier": {
+          "$ref": "#/definitions/v1alpha1ChunkStorageTier"
+        },
+        "status": {
+          "$ref": "#/definitions/v1alpha1ChunkStatus"
+        },
+        "replicaNodes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "creationTimestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1alpha1ChunkStatus": {
+      "type": "string",
+      "enum": [
+        "CHUNK_STATUS_UNSPECIFIED",
+        "CHUNK_STATUS_PENDING",
+        "CHUNK_STATUS_REPLICATING",
+        "CHUNK_STATUS_READY",
+        "CHUNK_STATUS_DEGRADED",
+        "CHUNK_STATUS_LOST"
+      ],
+      "default": "CHUNK_STATUS_UNSPECIFIED"
+    },
+    "v1alpha1ChunkStorageTier": {
+      "type": "string",
+      "enum": [
+        "CHUNK_STORAGE_TIER_UNSPECIFIED",
+        "CHUNK_STORAGE_TIER_HOT",
+        "CHUNK_STORAGE_TIER_WARM",
+        "CHUNK_STORAGE_TIER_COLD",
+        "CHUNK_STORAGE_TIER_ARCHIVE"
+      ],
+      "default": "CHUNK_STORAGE_TIER_UNSPECIFIED"
+    },
+    "v1alpha1ClusterConfig": {
+      "type": "object",
+      "properties": {
+        "replicationFactor": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "minReplicas": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "maxReplicas": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "heartbeatInterval": {
+          "type": "string"
+        },
+        "nodeTimeout": {
+          "type": "string"
+        },
+        "autoRebalance": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1alpha1ClusterStatus": {
+      "type": "object",
+      "properties": {
+        "totalNodes": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "healthyNodes": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalCapacity": {
+          "type": "string",
+          "format": "int64"
+        },
+        "usedCapacity": {
+          "type": "string",
+          "format": "int64"
+        },
+        "availableCapacity": {
+          "type": "string",
+          "format": "int64"
+        },
+        "volumesByStatus": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "lastUpdated": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1alpha1DeleteChunkResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1alpha1DeleteSnapshotResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1alpha1DeleteVolumeResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1alpha1HeartbeatResponse": {
+      "type": "object",
+      "properties": {
+        "accepted": {
+          "type": "boolean"
+        },
+        "serverTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1ListChunksResponse": {
+      "type": "object",
+      "properties": {
+        "chunks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1Chunk"
+          }
+        },
+        "nextPageToken": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ListNodesResponse": {
+      "type": "object",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1Node"
+          }
+        },
+        "nextPageToken": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ListSnapshotsResponse": {
+      "type": "object",
+      "properties": {
+        "snapshots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1Snapshot"
+          }
+        },
+        "nextPageToken": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ListVolumesResponse": {
+      "type": "object",
+      "properties": {
+        "volumes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1Volume"
+          }
+        },
+        "nextPageToken": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1Node": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "port": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "capacity": {
+          "type": "string",
+          "format": "int64"
+        },
+        "usedCapacity": {
+          "type": "string",
+          "format": "int64"
+        },
+        "status": {
+          "$ref": "#/definitions/v1alpha1NodeStatus"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "lastHeartbeat": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "creationTimestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1alpha1NodeStatus": {
+      "type": "string",
+      "enum": [
+        "NODE_STATUS_UNSPECIFIED",
+        "NODE_STATUS_HEALTHY",
+        "NODE_STATUS_DEGRADED",
+        "NODE_STATUS_UNHEALTHY",
+        "NODE_STATUS_OFFLINE"
+      ],
+      "default": "NODE_STATUS_UNSPECIFIED"
+    },
+    "v1alpha1Snapshot": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "volumeId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/v1alpha1SnapshotStatus"
+        },
+        "size": {
+          "type": "string",
+          "format": "int64"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "creationTimestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completionTimestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1alpha1SnapshotStatus": {
+      "type": "string",
+      "enum": [
+        "SNAPSHOT_STATUS_UNSPECIFIED",
+        "SNAPSHOT_STATUS_CREATING",
+        "SNAPSHOT_STATUS_READY",
+        "SNAPSHOT_STATUS_DELETING",
+        "SNAPSHOT_STATUS_ERROR"
+      ],
+      "default": "SNAPSHOT_STATUS_UNSPECIFIED"
+    },
+    "v1alpha1Volume": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "storageClass": {
+          "type": "string"
+        },
+        "size": {
+          "type": "string",
+          "format": "int64"
+        },
+        "status": {
+          "$ref": "#/definitions/v1alpha1VolumeStatus"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "creationTimestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updateTimestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ownerNode": {
+          "type": "string"
+        },
+        "chunkIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1VolumeStatus": {
+      "type": "string",
+      "enum": [
+        "VOLUME_STATUS_UNSPECIFIED",
+        "VOLUME_STATUS_CREATING",
+        "VOLUME_STATUS_READY",
+        "VOLUME_STATUS_DELETING",
+        "VOLUME_STATUS_ERROR"
+      ],
+      "default": "VOLUME_STATUS_UNSPECIFIED"
+    }
+  }
+}

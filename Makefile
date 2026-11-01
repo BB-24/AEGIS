@@ -8,9 +8,12 @@ DOCKER_TAG ?= $(VERSION)
 GOLANGCI_LINT_VERSION := v1.61.0
 BUF_VERSION := v1.47.2
 GORELEASER_VERSION := v2.4.8
+PROTOC_GEN_GO_VERSION := v1.35.2
+PROTOC_GEN_GO_GRPC_VERSION := v1.5.1
+GRPC_GATEWAY_VERSION := v2.24.0
 
 .DEFAULT_GOAL := help
-.PHONY: help build build-binaries test test-unit test-integration integration-test lint generate docker-build release release-dry-run clean install-tools dev-setup run-operator run-worker run-metadata run-storage run-cli
+.PHONY: help build build-binaries test test-unit test-integration integration-test lint generate docker-build release release-dry-run clean install-tools install-proto-tools dev-setup run-operator run-worker run-metadata run-storage run-cli
 
 help: ## Show available targets
 	@echo AEGIS build targets:
@@ -74,10 +77,16 @@ release-dry-run: ## Create a local snapshot release
 release: ## Publish a release (requires a valid GoReleaser token)
 	goreleaser release --clean
 
-install-tools: ## Install pinned Go development tools
+install-tools: install-proto-tools ## Install pinned Go development tools
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
-	go install github.com/bufbuild/buf/cmd/buf@$(BUF_VERSION)
 	go install github.com/goreleaser/goreleaser/v2@$(GORELEASER_VERSION)
+
+install-proto-tools: ## Install pinned Buf and protobuf generators
+	go install github.com/bufbuild/buf/cmd/buf@$(BUF_VERSION)
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTOC_GEN_GO_VERSION)
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@$(PROTOC_GEN_GO_GRPC_VERSION)
+	go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@$(GRPC_GATEWAY_VERSION)
+	go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@$(GRPC_GATEWAY_VERSION)
 
 dev-setup: install-tools generate ## Full development environment setup
 	@echo "Development environment ready!"

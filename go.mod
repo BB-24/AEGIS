@@ -1,6 +1,6 @@
 module github.com/aegis/aegis
 
-go 1.23
+go 1.25.0
 
 require (
 	cloud.google.com/go/kms v1.20.5
@@ -14,15 +14,10 @@ require (
 	github.com/hashicorp/vault/api v1.13.0
 	github.com/klauspost/compress v1.17.2
 	github.com/klauspost/reedsolomon v1.12.4
-	github.com/oklog/ulid/v2 v2.1.0
 	github.com/prometheus/client_golang v1.19.0
-	github.com/spf13/cobra v1.8.1
-	github.com/spf13/viper v1.19.0
-	go.etcd.io/bbolt v1.3.11
-	go.uber.org/zap v1.26.0
+	go.etcd.io/bbolt v1.5.0
 	google.golang.org/grpc v1.68.0
 	google.golang.org/protobuf v1.35.2
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -87,8 +82,8 @@ require (
 	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/oauth2 v0.24.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/time v0.8.0 // indirect
 	google.golang.org/api v0.214.0 // indirect

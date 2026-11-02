@@ -14,15 +14,10 @@ require (
 	github.com/hashicorp/vault/api v1.13.0
 	github.com/klauspost/compress v1.17.2
 	github.com/klauspost/reedsolomon v1.12.4
-	github.com/oklog/ulid/v2 v2.1.0
 	github.com/prometheus/client_golang v1.19.0
-	github.com/spf13/cobra v1.8.1
-	github.com/spf13/viper v1.19.0
 	go.etcd.io/bbolt v1.3.11
-	go.uber.org/zap v1.26.0
 	google.golang.org/grpc v1.68.0
 	google.golang.org/protobuf v1.35.2
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
